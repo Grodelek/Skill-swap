@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowUpRight, ChevronRight, MessageCircle, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
 import { C } from '../constants/theme'
 import { fetchConversations, ConversationDTO } from '../api/conversationApi'
 import { getUserById } from '../api/userApi'
@@ -9,82 +9,104 @@ import { Spinner } from '../components/ui/Spinner'
 import { Avatar } from '../components/ui/Avatar'
 import { Wispa } from '../components/Wispa'
 
-interface ConvWithPhoto extends ConversationDTO {
-  otherPhoto?: string | null
-}
+interface ConvWithPhoto extends ConversationDTO { otherPhoto?: string | null }
 
 function formatTime(iso?: string) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })
+  if (!iso) return 'Brak daty'
+  const date = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+  if (date.toDateString() === today.toDateString()) return date.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
+  if (date.toDateString() === yesterday.toDateString()) return 'Wczoraj'
+  return date.toLocaleDateString('pl-PL', { day: '2-digit', month: 'short' }).replace('.', '')
 }
 
 export function Conversations() {
   const { userId } = useAuth()
   const navigate = useNavigate()
-  const [convs, setConvs] = useState<ConvWithPhoto[]>([])
+  const [conversations, setConversations] = useState<ConvWithPhoto[]>([])
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     fetchConversations()
       .then(async list => {
-        const withPhotos = await Promise.all(
-          list.map(async conv => {
-            const otherId = conv.user1Id === userId ? conv.user2Id : conv.user1Id
-            try { return { ...conv, otherPhoto: (await getUserById(otherId)).photoPath ?? null } }
-            catch { return { ...conv, otherPhoto: null } }
-          })
-        )
-        setConvs(withPhotos)
+        const withPhotos = await Promise.all(list.map(async conversation => {
+          const otherId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id
+          try { return { ...conversation, otherPhoto: (await getUserById(otherId)).photoPath ?? null } }
+          catch { return { ...conversation, otherPhoto: null } }
+        }))
+        setConversations(withPhotos)
       })
-      .catch(e => setError(e.message))
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Nie udało się pobrać wiadomości.'))
       .finally(() => setLoading(false))
   }, [userId])
+
+  const filtered = useMemo(() => conversations.filter(conversation => {
+    const isUser1 = conversation.user1Id === userId
+    const name = isUser1 ? conversation.user2Username : conversation.user1Username
+    return name?.toLowerCase().includes(query.toLowerCase())
+  }), [conversations, query, userId])
 
   if (loading) return <Spinner />
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-      <div style={{ padding: '20px 24px 14px', flexShrink: 0, borderBottom: `1px solid ${C.border}` }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: -0.5 }}>Wiadomości</h1>
-      </div>
+    <div className="conversations-page" style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: C.bg }}>
+      <style>{`
+        .conversations-page * { box-sizing: border-box; }
+        .conversations-header { padding: 29px 42px 24px; border-bottom: 1px solid ${C.border}; }
+        .conversations-scroll { height: calc(100% - 120px); overflow-y: auto; padding: 31px 42px 48px; }
+        .conversations-shell { max-width: 850px; margin: 0 auto; }
+        .conversation-row { width: 100%; display: flex; align-items: center; gap: 16px; padding: 17px 0; border: 0; border-top: 1px solid ${C.border}; background: transparent; color: inherit; cursor: pointer; font-family: inherit; text-align: left; }
+        .conversation-row:hover, .conversation-row:focus-visible { background: ${C.surface}66; outline: none; }
+        .conversation-row:focus-visible { box-shadow: inset 3px 0 ${C.amber}; }
+        .conversation-search:focus { border-color: ${C.amber} !important; box-shadow: 0 0 0 3px ${C.amber}18; }
+        @media (max-width: 700px) {
+          .conversations-header { padding: 21px 20px 18px; }
+          .conversations-scroll { height: calc(100% - 103px); padding: 24px 20px 90px; }
+        }
+        @media (max-width: 420px) {
+          .conversations-header { padding: 18px 16px 15px; }
+          .conversations-scroll { padding: 20px 16px 90px; }
+          .conversation-row { gap: 12px; padding: 15px 0; }
+        }
+      `}</style>
 
-      {error && (
-        <div style={{ margin: '14px 24px', padding: '11px 14px', borderRadius: 10, background: C.coral + '22', color: C.coral, fontSize: 14 }}>{error}</div>
-      )}
+      <header className="conversations-header">
+        <div className="conversations-shell">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: C.teal, font: '700 11px ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.12em', textTransform: 'uppercase' }}><span style={{ width: 22, height: 1, background: C.teal }} /> Inbox / {conversations.length.toString().padStart(2, '0')}</div>
+          <h1 style={{ marginTop: 10, color: C.text, fontSize: 'clamp(27px, 4vw, 38px)', lineHeight: 1, letterSpacing: '-.05em', fontWeight: 850 }}>Rozmowy</h1>
+          <p style={{ marginTop: 10, color: C.textDim, fontSize: 13 }}>Twoje kontakty z osobami, z którymi wymieniasz umiejętności.</p>
+        </div>
+      </header>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {convs.length === 0 && !error ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 320, gap: 14 }}>
-            <Wispa size={72} />
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.textDim }}>Brak wiadomości</div>
-            <div style={{ fontSize: 13, color: C.textFaint, textAlign: 'center', maxWidth: 240 }}>Połącz się z tutorem, aby rozpocząć czat</div>
-          </div>
-        ) : convs.map(conv => {
-          const isUser1 = conv.user1Id === userId
-          const otherName = isUser1 ? conv.user2Username : conv.user1Username
-          const otherId   = isUser1 ? conv.user2Id       : conv.user1Id
+      <main className="conversations-scroll">
+        <div className="conversations-shell">
+          {conversations.length > 0 && <div style={{ position: 'relative', marginBottom: 25 }}><Search size={16} color={C.textFaint} style={{ position: 'absolute', top: 15, left: 14 }} /><input className="conversation-search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Znajdź rozmowę" aria-label="Znajdź rozmowę" style={{ width: '100%', minHeight: 46, padding: '12px 14px 12px 40px', border: `1px solid ${C.borderStrong}`, borderRadius: 5, background: C.bgDeep, color: C.text, font: '14px inherit', outline: 'none' }} /></div>}
 
-          return (
-            <button
-              key={conv.id}
-              onClick={() => navigate(`/conversations/${conv.id}`, { state: { receiverId: otherId, tutorName: otherName } })}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '13px 24px', border: 'none', borderBottom: `1px solid ${C.border}`, background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
-              onMouseEnter={e => (e.currentTarget.style.background = C.surface)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <Avatar name={otherName ?? '?'} photo={conv.otherPhoto} size={46} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: C.text }}>{otherName || 'Użytkownik'}</div>
-                {conv.lastMessageAt && (
-                  <div style={{ fontSize: 12, color: C.textFaint, marginTop: 2 }}>{formatTime(conv.lastMessageAt)}</div>
-                )}
-              </div>
-              <ChevronRight size={16} color={C.textFaint} />
+          {error && <div role="alert" style={{ padding: '12px 14px', marginBottom: 18, borderLeft: `3px solid ${C.coral}`, background: C.coral + '12', color: C.coral, fontSize: 13 }}>{error}</div>}
+
+          {filtered.length === 0 && !error ? (
+            <div style={{ minHeight: 330, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: '30px 0', borderTop: `1px solid ${C.border}` }}>
+              <div style={{ display: 'grid', placeItems: 'center', width: 48, height: 48, marginBottom: 20, border: `1px solid ${C.borderStrong}`, color: C.teal }}><MessageCircle size={22} /></div>
+              <h2 style={{ color: C.text, fontSize: 21, letterSpacing: '-.03em' }}>{query ? 'Nie znaleziono rozmowy' : 'Tu zaczną się rozmowy'}</h2>
+              <p style={{ maxWidth: 310, marginTop: 9, color: C.textDim, fontSize: 13, lineHeight: 1.55 }}>{query ? 'Spróbuj wyszukać inną nazwę użytkownika.' : 'Napisz do tutora, aby ustalić szczegóły pierwszej lekcji.'}</p>
+              {!query && <button onClick={() => navigate('/explore')} style={{ marginTop: 23, minHeight: 44, padding: '10px 15px', border: 0, borderRadius: 5, background: C.amber, color: '#1A0A00', cursor: 'pointer', font: '800 13px inherit' }}>Odkryj tutorów <ArrowUpRight size={15} style={{ verticalAlign: '-3px', marginLeft: 4 }} /></button>}
+            </div>
+          ) : filtered.map(conversation => {
+            const isUser1 = conversation.user1Id === userId
+            const name = isUser1 ? conversation.user2Username : conversation.user1Username
+            const otherId = isUser1 ? conversation.user2Id : conversation.user1Id
+            return <button key={conversation.id} className="conversation-row" onClick={() => navigate(`/conversations/${conversation.id}`, { state: { receiverId: otherId, tutorName: name } })}>
+              <Avatar name={name ?? '?'} photo={conversation.otherPhoto} size={48} />
+              <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: 'block', overflow: 'hidden', color: C.text, fontSize: 15, fontWeight: 750, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name || 'Użytkownik'}</span><span style={{ display: 'block', marginTop: 4, color: C.textFaint, fontSize: 12 }}>Ostatni kontakt</span></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, color: C.textFaint, fontSize: 12 }}>{formatTime(conversation.lastMessageAt)}<ChevronRight size={16} /></span>
             </button>
-          )
-        })}
-      </div>
+          })}
+        </div>
+      </main>
     </div>
   )
 }

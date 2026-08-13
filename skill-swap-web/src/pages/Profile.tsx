@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
+import { Check, Pencil, Settings, Share2, Shield } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { Settings, Pencil, Shield, Share2, Check } from 'lucide-react'
 import { C } from '../constants/theme'
 import { getMyAccount, getMyTutorInfo, TutorInfo, uploadPhoto, User as UserType } from '../api/userApi'
 import { fetchMyBookings, Offer } from '../api/offerApi'
@@ -12,30 +12,14 @@ import { AvatarRing } from '../components/profile/AvatarRing'
 import { EditProfileSheet } from '../components/profile/EditProfileSheet'
 import { SettingsSheet } from '../components/profile/SettingsSheet'
 
-function levelFromXP(xp: number) {
-  return { level: Math.floor(xp / 100) + 1, current: xp % 100, needed: 100 }
-}
+function levelFromXP(xp: number) { return { level: Math.floor(xp / 100) + 1, current: xp % 100, needed: 100 } }
 
-const EXPERIENCE_LABELS: Record<string, string> = {
-  BEGINNER: 'Początkujący', INTERMEDIATE: 'Średniozaawansowany', ADVANCED: 'Zaawansowany', EXPERT: 'Ekspert',
-}
-const AVAILABILITY_LABELS: Record<string, string> = {
-  WEEKDAYS_ONLY: 'Dni robocze', WEEKENDS_ONLY: 'Weekendy', EVENING_ONLY: 'Wieczory', FLEXIBLE: 'Elastycznie',
-}
-const LESSON_TYPE_LABELS: Record<string, string> = {
-  PROFESSIONAL: 'Profesjonalne', CASUAL: 'Casualowe', FLEXIBLE: 'Elastyczne',
-}
+const EXPERIENCE_LABELS: Record<string, string> = { BEGINNER: 'Początkujący', INTERMEDIATE: 'Średniozaawansowany', ADVANCED: 'Zaawansowany', EXPERT: 'Ekspert' }
+const AVAILABILITY_LABELS: Record<string, string> = { WEEKDAYS_ONLY: 'Dni robocze', WEEKENDS_ONLY: 'Weekendy', EVENING_ONLY: 'Wieczory', FLEXIBLE: 'Elastycznie' }
+const LESSON_TYPE_LABELS: Record<string, string> = { PROFESSIONAL: 'Profesjonalne', CASUAL: 'Casualowe', FLEXIBLE: 'Elastyczne' }
 
 function TutorTag({ label }: { label: string }) {
-  return (
-    <span style={{
-      fontSize: 12, fontWeight: 600, color: C.textDim,
-      padding: '4px 10px', borderRadius: 9999,
-      border: `1px solid ${C.borderStrong}`,
-    }}>
-      {label}
-    </span>
-  )
+  return <span style={{ display: 'inline-flex', alignItems: 'center', minHeight: 28, padding: '5px 9px', border: `1px solid ${C.borderStrong}`, borderRadius: 4, color: C.textDim, fontSize: 11, fontWeight: 700 }}>{label}</span>
 }
 
 export function Profile() {
@@ -43,154 +27,101 @@ export function Profile() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserType | null>(null)
   const [offers, setOffers] = useState<Offer[]>([])
+  const [tutorInfo, setTutorInfo] = useState<TutorInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [tutorInfo, setTutorInfo] = useState<TutorInfo | null>(null)
 
-  const profileSlug = user?.slug ?? user?.username
-    ?.replace(/([a-z])([A-Z])/g, '$1-$2')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-
-  const handleShare = () => {
-    if (!profileSlug) return
-    const url = `${window.location.origin}/tutor/${profileSlug}`
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
+  const profileSlug = user?.slug ?? user?.username?.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
   useEffect(() => {
     Promise.all([getMyAccount(), fetchMyBookings().catch(() => [])])
-      .then(([u, o]) => { setUser(u); setOffers(o) })
+      .then(([account, bookings]) => { setUser(account); setOffers(bookings) })
       .finally(() => setLoading(false))
     if (userType === 'TUTOR') getMyTutorInfo().then(setTutorInfo).catch(() => {})
-  }, [])
+  }, [userType])
+
+  const handleShare = () => {
+    if (!profileSlug) return
+    navigator.clipboard.writeText(`${window.location.origin}/tutor/${profileSlug}`).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   const handleLogout = () => { logout(); navigate('/login') }
-
-  const handlePhotoChange = async (base64: string) => {
-    try {
-      await uploadPhoto(base64)
-      setUser(u => u ? { ...u, photoPath: base64 } : u)
-    } catch { /* silent */ }
-  }
-
-  const handleProfileSave = (username: string, description: string) => {
-    setUser(u => u ? { ...u, username, description } : u)
-  }
-
+  const handlePhotoChange = async (base64: string) => { try { await uploadPhoto(base64); setUser(current => current ? { ...current, photoPath: base64 } : current) } catch { /* upload errors stay local */ } }
+  const handleProfileSave = (username: string, description: string) => setUser(current => current ? { ...current, username, description } : current)
   const openEdit = () => { setShowSettings(false); setShowEdit(true) }
 
   if (loading) return <Spinner />
 
   const xp = user?.points ?? 0
   const { level, current, needed } = levelFromXP(xp)
-  const completedLessons = offers.filter(o => o.completed).length
+  const completedLessons = offers.filter(offer => offer.completed).length
   const uri = getImageUrl(user?.photoPath)
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: C.bg }}>
-      <div style={{ maxWidth: 480, margin: '0 auto', paddingBottom: 32 }}>
+    <div className="account-page" style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: C.bg }}>
+      <style>{`
+        .account-page * { box-sizing: border-box; }
+        .account-header { padding: 28px 42px 22px; border-bottom: 1px solid ${C.border}; }
+        .account-scroll-shell { max-width: 920px; margin: 0 auto; }
+        .account-main { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(0, 1.28fr); gap: clamp(35px, 7vw, 90px); padding: 38px 42px 60px; }
+        .account-identity { padding-right: 28px; border-right: 1px solid ${C.border}; }
+        .account-action { min-height: 38px; padding: 8px 11px; border: 1px solid ${C.borderStrong}; border-radius: 4px; background: transparent; color: ${C.textDim}; cursor: pointer; font: 700 12px inherit; }
+        .account-action:hover { border-color: ${C.amber}88; color: ${C.amber}; }
+        .account-section { padding: 23px 0; border-top: 1px solid ${C.border}; }
+        .account-section:first-child { padding-top: 0; border-top: 0; }
+        .account-section-label { color: ${C.textFaint}; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; }
+        .account-stats { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid ${C.border}; border-bottom: 1px solid ${C.border}; }
+        .account-stat { padding: 15px 0; }
+        .account-stat + .account-stat { padding-left: 20px; border-left: 1px solid ${C.border}; }
+        @media (max-width: 760px) {
+          .account-header { padding: 22px 24px 18px; }
+          .account-main { grid-template-columns: 1fr; gap: 27px; padding: 30px 24px 100px; }
+          .account-identity { padding: 0 0 26px; border-right: 0; border-bottom: 1px solid ${C.border}; }
+        }
+        @media (max-width: 420px) {
+          .account-header { padding: 18px 16px 15px; }
+          .account-main { padding: 24px 16px 96px; }
+          .account-top-actions { gap: 6px !important; }
+          .account-top-actions span { display: none; }
+        }
+      `}</style>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 20px 0' }}>
-          <span style={{ fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: -0.5 }}>Profil</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {userType === 'TUTOR' && profileSlug && (
-              <button onClick={handleShare} title="Udostępnij profil" style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: copied ? C.green + '22' : C.surfaceUp,
-                border: `1px solid ${copied ? C.green + '55' : C.border}`,
-                borderRadius: 10, padding: '6px 12px', cursor: 'pointer',
-                color: copied ? C.green : C.textDim, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-                transition: 'all 0.2s',
-              }}>
-                {copied ? <Check size={14} /> : <Share2 size={14} />}
-                {copied ? 'Skopiowano!' : 'Udostępnij'}
-              </button>
-            )}
-            <button onClick={() => setShowSettings(true)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-              <Settings size={22} color={C.textDim} />
-            </button>
+      <header className="account-header">
+        <div className="account-scroll-shell" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 18 }}>
+          <div><div style={{ display: 'flex', alignItems: 'center', gap: 10, color: C.purple, font: '700 11px ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.12em', textTransform: 'uppercase' }}><span style={{ width: 22, height: 1, background: C.purple }} /> Account / 01</div><h1 style={{ marginTop: 10, color: C.text, fontSize: 'clamp(27px, 4vw, 38px)', lineHeight: 1, letterSpacing: '-.05em', fontWeight: 850 }}>Moje konto</h1></div>
+          <div className="account-top-actions" style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
+            {userType === 'TUTOR' && profileSlug && <button className="account-action" onClick={handleShare}>{copied ? <Check size={14} style={{ verticalAlign: '-3px', marginRight: 5 }} /> : <Share2 size={14} style={{ verticalAlign: '-3px', marginRight: 5 }} />}<span>{copied ? 'Skopiowano' : 'Udostępnij'}</span></button>}
+            <button className="account-action" onClick={() => setShowSettings(true)} aria-label="Otwórz ustawienia"><Settings size={16} /></button>
           </div>
         </div>
+      </header>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 20px 20px' }}>
+      <main className="account-scroll-shell account-main">
+        <aside className="account-identity">
           <AvatarRing uri={uri} username={user?.username} xpCurrent={current} xpNeeded={needed} onPhotoChange={handlePhotoChange} />
+          <div style={{ textAlign: 'center' }}><h2 style={{ color: C.text, fontSize: 22, fontWeight: 850, letterSpacing: '-.04em' }}>{user?.username ?? '—'}</h2><p style={{ marginTop: 5, color: C.textFaint, fontSize: 12 }}>{userType === 'TUTOR' ? 'Tutor SkillSwap' : 'Użytkownik SkillSwap'}</p></div>
 
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: -0.4 }}>
-            {user?.username ?? '—'}
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '22px 0 24px', padding: '11px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}><Shield size={16} color={C.amber} /><span style={{ color: C.amber, fontSize: 13, fontWeight: 800 }}>Poziom {level}</span><span style={{ marginLeft: 'auto', color: C.textFaint, fontSize: 12 }}>{current}/{needed} XP</span></div>
 
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            marginTop: 8, padding: '5px 14px', borderRadius: 9999,
-            background: C.surfaceUp, border: '1px solid rgba(255,255,255,0.08)',
-          }}>
-            <Shield size={13} color={C.amber} fill={C.amber} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.amber }}>Poziom {level}</span>
-            <span style={{ fontSize: 13, color: C.textFaint }}>· {current}/{needed} XP</span>
-          </div>
+          {tutorInfo && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 24 }}>{tutorInfo.experienceTime && <TutorTag label={EXPERIENCE_LABELS[tutorInfo.experienceTime] ?? tutorInfo.experienceTime} />}{tutorInfo.availability && <TutorTag label={AVAILABILITY_LABELS[tutorInfo.availability] ?? tutorInfo.availability} />}{tutorInfo.lessonType && <TutorTag label={LESSON_TYPE_LABELS[tutorInfo.lessonType] ?? tutorInfo.lessonType} />}</div>}
 
-          {tutorInfo && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12, justifyContent: 'center' }}>
-              {tutorInfo.experienceTime && <TutorTag label={EXPERIENCE_LABELS[tutorInfo.experienceTime] ?? tutorInfo.experienceTime} />}
-              {tutorInfo.availability && <TutorTag label={AVAILABILITY_LABELS[tutorInfo.availability] ?? tutorInfo.availability} />}
-              {tutorInfo.lessonType && <TutorTag label={LESSON_TYPE_LABELS[tutorInfo.lessonType] ?? tutorInfo.lessonType} />}
-            </div>
-          )}
+          <div className="account-stats"><div className="account-stat"><div style={{ color: C.amber, fontSize: 25, fontWeight: 900, letterSpacing: '-.05em' }}>{xp}</div><div style={{ marginTop: 3, color: C.textFaint, fontSize: 10, fontWeight: 750, letterSpacing: '.09em', textTransform: 'uppercase' }}>Punkty XP</div></div><div className="account-stat"><div style={{ color: C.teal, fontSize: 25, fontWeight: 900, letterSpacing: '-.05em' }}>{completedLessons}</div><div style={{ marginTop: 3, color: C.textFaint, fontSize: 10, fontWeight: 750, letterSpacing: '.09em', textTransform: 'uppercase' }}>Ukończone</div></div></div>
+        </aside>
 
-          <div style={{
-            display: 'flex', width: '100%', marginTop: 20,
-            background: C.surface, borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden',
-          }}>
-            <div style={{ flex: 1, padding: '16px 0', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 28, fontWeight: 900, color: C.amber, letterSpacing: -1 }}>{xp}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textFaint, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>XP</div>
-            </div>
-            <div style={{ flex: 1, padding: '16px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 28, fontWeight: 900, color: C.teal, letterSpacing: -1 }}>{completedLessons}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textFaint, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>Lekcji</div>
-            </div>
-          </div>
+        <div>
+          <section className="account-section"><div className="account-section-label">O mnie</div><p style={{ marginTop: 12, color: user?.description ? C.textDim : C.textFaint, fontSize: 14, lineHeight: 1.7 }}>{user?.description || 'Dodaj krótki opis, żeby inni wiedzieli, w czym możesz pomóc.'}</p><button onClick={openEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 16, padding: 0, border: 0, background: 'transparent', color: C.amber, cursor: 'pointer', font: '750 13px inherit' }}><Pencil size={14} /> Edytuj profil</button></section>
+          <section className="account-section"><div className="account-section-label" style={{ marginBottom: 16 }}>Aktywność</div><ActivityHeatmap offers={offers} /></section>
+          <section className="account-section"><div className="account-section-label">Dane konta</div><div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '10px 24px', marginTop: 14, fontSize: 13 }}><span style={{ color: C.textFaint }}>Nazwa użytkownika</span><span style={{ color: C.textDim, overflowWrap: 'anywhere' }}>{user?.username ?? '—'}</span><span style={{ color: C.textFaint }}>Typ konta</span><span style={{ color: C.textDim }}>{userType === 'TUTOR' ? 'Tutor' : 'Uczeń'}</span></div></section>
         </div>
+      </main>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-          <ActivityHeatmap offers={offers} />
-
-          <div style={{ background: C.surface, borderRadius: 16, padding: '18px 20px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textFaint, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>O mnie</div>
-            <div style={{ fontSize: 14, color: C.textDim, lineHeight: 1.65 }}>
-              {user?.description || 'Dodaj krótki opis, żeby inni wiedzieli, w czym możesz pomóc.'}
-            </div>
-            <button onClick={openEdit} style={{
-              display: 'flex', alignItems: 'center', gap: 6, marginTop: 14,
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: C.amber, fontWeight: 700, fontSize: 14, fontFamily: 'inherit', padding: 0,
-            }}>
-              <Pencil size={14} /> Edytuj profil
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {showSettings && (
-        <SettingsSheet onClose={() => setShowSettings(false)} onEditProfile={openEdit} onLogout={handleLogout} />
-      )}
-
-      {showEdit && user?.id && (
-        <EditProfileSheet
-          userId={user.id}
-          initialUsername={user.username ?? ''}
-          initialDescription={user.description ?? ''}
-          onSave={handleProfileSave}
-          onClose={() => setShowEdit(false)}
-        />
-      )}
+      {showSettings && <SettingsSheet onClose={() => setShowSettings(false)} onEditProfile={openEdit} onLogout={handleLogout} />}
+      {showEdit && user?.id && <EditProfileSheet userId={user.id} initialUsername={user.username ?? ''} initialDescription={user.description ?? ''} onSave={handleProfileSave} onClose={() => setShowEdit(false)} />}
     </div>
   )
 }

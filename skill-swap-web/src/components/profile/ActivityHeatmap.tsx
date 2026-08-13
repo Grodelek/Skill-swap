@@ -49,7 +49,7 @@ export function ActivityHeatmap({ offers }: ActivityHeatmapProps) {
   const today = new Date().toISOString().slice(0, 10)
 
   return (
-    <div style={{ background: C.surface, borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.border}` }}>
+    <div style={{ padding: '16px 0 4px', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textFaint, textTransform: 'uppercase', letterSpacing: 1 }}>
           Aktywność lekcji
@@ -70,7 +70,7 @@ export function ActivityHeatmap({ offers }: ActivityHeatmapProps) {
                     key={day}
                     title={`${day}: ${count} lekcj${count === 1 ? 'a' : count < 5 ? 'e' : 'i'}`}
                     style={{
-                      width: 13, height: 13, borderRadius: 3,
+                      width: 13, height: 13, borderRadius: 2,
                       background: cellColor(count),
                       border: day === today ? `1.5px solid ${C.amber}` : 'none',
                       flexShrink: 0,
