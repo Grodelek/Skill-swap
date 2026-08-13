@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#120D26" />
+    <title>SkillSwap</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body, #root { height: 100%; }
+      html { color-scheme: dark; }
+      body { font-family: 'DM Sans', sans-serif; background: #1A1335; color: #fff; -webkit-tap-highlight-color: rgba(255,165,61,0.22); }
+      :focus-visible { outline: 3px solid #FFD15C; outline-offset: 3px; }
+      input:focus-visible { box-shadow: 0 0 0 3px rgba(255,165,61,0.22); }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+
+      .sidebar { display: flex; }
+      .bottom-nav { display: none; }
+      .main-content { padding-bottom: 0; }
+
+      @media (max-width: 640px) {
+        .sidebar { display: none !important; }
+        .bottom-nav { display: flex !important; }
+        .main-content { padding-bottom: 64px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>window.global = window;</script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

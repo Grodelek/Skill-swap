@@ -1,0 +1,24 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+ss-backend/.env
+ss-backend/.env.*
+!ss-backend/.env.example
+
+# Build output and dependencies
+ss-backend/target/
+skill-swap-web/node_modules/
+skill-swap-web/dist/
+skill-swap-web/.expo/
+
+# IDE and local tooling
+.idea/
+.codex/
+skill-swap-web/.idea/
+ss-backend/.idea/
+.claude/
+
+# Local files
+*.log
+.DS_Store
