@@ -2,13 +2,10 @@ package com.tutoring.app.lesson;
 
 import com.tutoring.app.message.MessageRepository;
 import com.tutoring.app.user.User;
-import com.tutoring.app.user.UserPrincipal;
-import com.tutoring.app.user.UserRepository;
+import com.tutoring.app.user.CurrentUserService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
@@ -19,19 +16,19 @@ import java.util.stream.Collectors;
 @Service
 public class LessonService {
   private final LessonRepository lessonRepository;
-  private final UserRepository userRepository;
+  private final CurrentUserService currentUserService;
   private final MessageRepository messageRepository;
 
-  public LessonService(LessonRepository lessonRepository, UserRepository userRepository, MessageRepository messageRepository) {
+  public LessonService(LessonRepository lessonRepository, CurrentUserService currentUserService, MessageRepository messageRepository) {
     this.lessonRepository = lessonRepository;
-    this.userRepository = userRepository;
+    this.currentUserService = currentUserService;
     this.messageRepository = messageRepository;
   }
 
   public List<Lesson> getAllLessons() { return lessonRepository.findAll(); }
 
   public LessonResponseDTO createLesson(LessonRequestDTO dto) {
-    User tutor = getLoggedInUser();
+    User tutor = currentUserService.get();
     Lesson lesson = Lesson.builder()
             .tutor(tutor).subject(dto.getSubject())
             .durationTime(dto.getDurationTime()).price(dto.getPrice())
@@ -50,13 +47,13 @@ public class LessonService {
   }
 
   public ResponseEntity<LessonResponseDTO> updateLesson(UUID id, LessonRequestDTO dto) {
-    User tutor = getLoggedInUser();
+    User tutor = currentUserService.get();
     Optional<Lesson> lessonOptional = lessonRepository.findById(id);
     if (lessonOptional.isEmpty()) return ResponseEntity.notFound().build();
     Lesson lesson = lessonOptional.get();
+    if (!lesson.getTutor().getId().equals(tutor.getId())) return ResponseEntity.status(403).build();
     lesson.setSubject(dto.getSubject()); lesson.setDurationTime(dto.getDurationTime());
     lesson.setPrice(dto.getPrice()); lesson.setDescription(dto.getDescription());
-    lesson.setTutor(tutor);
     return ResponseEntity.ok(mapToResponseDTO(lessonRepository.save(lesson)));
   }
 
@@ -80,7 +77,7 @@ public class LessonService {
 
   @jakarta.transaction.Transactional
   public ResponseEntity<Void> deleteLesson(UUID id) {
-    User tutor = getLoggedInUser();
+    User tutor = currentUserService.get();
     Lesson lesson = lessonRepository.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("Lesson not found"));
     if (!lesson.getTutor().getId().equals(tutor.getId()))
@@ -90,12 +87,4 @@ public class LessonService {
     return ResponseEntity.noContent().build();
   }
 
-  private User getLoggedInUser() {
-    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    if (!auth.isAuthenticated()) throw new SecurityException("User is not authenticated");
-    UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
-    if (principal == null) throw new EntityNotFoundException("User not found");
-    return userRepository.findByUsername(principal.getUsername())
-            .orElseThrow(() -> new EntityNotFoundException("Tutor not found"));
-  }
 }

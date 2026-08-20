@@ -41,7 +41,7 @@ public class SecurityConfig {
         .csrf(csrf -> csrf.disable())
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/users/add", "/api/users/login", "/api/users/**", "/v3/api-docs/**", "/swagger-ui/**")
+            .requestMatchers("/api/users/add", "/api/users/login", "/api/users/public/**", "/v3/api-docs/**", "/swagger-ui/**")
             .permitAll()
             .requestMatchers(HttpMethod.OPTIONS, "/**")
             .permitAll()

@@ -33,15 +33,15 @@ public class UserController {
   @GetMapping("/{id}")
   public UserDTO getUser(@PathVariable UUID id) { return userService.getUserById(id); }
 
-  @PutMapping("/{id}")
+  @PutMapping("/me")
   @PreAuthorize("@accessChecker.isTutorProfileComplete(authentication)")
-  public User updateUsername(@PathVariable UUID id, @Valid @RequestBody UpdateUserProfileRequest request) {
-    return userService.updateUserProfile(id, request);
+  public User updateProfile(@Valid @RequestBody UpdateUserProfileRequest request) {
+    return userService.updateUserProfile(request);
   }
 
-  @DeleteMapping("/{id}")
+  @DeleteMapping("/me")
   @PreAuthorize("@accessChecker.isTutorProfileComplete(authentication)")
-  public ResponseEntity<String> delete(@PathVariable UUID id) { return userService.delete(id); }
+  public ResponseEntity<String> delete() { return userService.deleteCurrentUser(); }
 
   @GetMapping("/me")
   public ResponseEntity<UserDTO> getCurrentUser(@AuthenticationPrincipal UserPrincipal userDetails) {

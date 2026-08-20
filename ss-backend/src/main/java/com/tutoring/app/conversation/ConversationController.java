@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import com.tutoring.app.user.CurrentUserService;
 
 @Tag(name = "Conversations", description = "Conversation retrieval between tutors and students")
 @RestController
@@ -18,13 +19,16 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/conversation")
 public class ConversationController {
   private final ConversationRepository conversationRepository;
+  private final CurrentUserService currentUserService;
 
-  public ConversationController(ConversationRepository conversationRepository) {
+  public ConversationController(ConversationRepository conversationRepository, CurrentUserService currentUserService) {
     this.conversationRepository = conversationRepository;
+    this.currentUserService = currentUserService;
   }
 
-  @GetMapping("/{userId}")
-  public ResponseEntity<List<ConversationDTO>> getUserConversations(@PathVariable UUID userId) {
+  @GetMapping("/me")
+  public ResponseEntity<List<ConversationDTO>> getUserConversations() {
+    UUID userId = currentUserService.get().getId();
     List<Conversation> conversations = conversationRepository.findByUser1IdOrUser2Id(userId);
     List<ConversationLastMessageProjection> projections = conversationRepository.findLastMessageTimestamps(userId);
     Map<UUID, ConversationLastMessageProjection> lastMessageMap = projections.stream()

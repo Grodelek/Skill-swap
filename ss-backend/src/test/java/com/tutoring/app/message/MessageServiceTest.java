@@ -4,6 +4,7 @@ import com.tutoring.app.conversation.Conversation;
 import com.tutoring.app.conversation.ConversationRepository;
 import com.tutoring.app.user.User;
 import com.tutoring.app.user.UserRepository;
+import com.tutoring.app.user.CurrentUserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,6 +27,8 @@ public class MessageServiceTest {
 
     @Mock
     ConversationRepository conversationRepository;
+    @Mock
+    CurrentUserService currentUserService;
 
     @InjectMocks
     MessageService messageService;
@@ -43,11 +46,11 @@ public class MessageServiceTest {
 
     @Test
     void shouldThrowWhenUserNotFound() {
-        when(userRepository.findById(user1Id)).thenReturn(Optional.empty());
-        when(userRepository.findById(user2Id)).thenReturn(Optional.of(user2));
+        when(currentUserService.get()).thenReturn(user1);
+        when(userRepository.findById(user2Id)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class,
-                () -> messageService.getOrCreateConversation(user1Id, user2Id));
+                () -> messageService.getOrCreateConversation(user2Id));
     }
 
     @Test
@@ -56,11 +59,11 @@ public class MessageServiceTest {
         existing.setUser1(user1);
         existing.setUser2(user2);
 
-        when(userRepository.findById(user1Id)).thenReturn(Optional.of(user1));
+        when(currentUserService.get()).thenReturn(user1);
         when(userRepository.findById(user2Id)).thenReturn(Optional.of(user2));
         when(conversationRepository.findAll()).thenReturn(List.of(existing));
 
-        Conversation result = messageService.getOrCreateConversation(user1Id, user2Id);
+        Conversation result = messageService.getOrCreateConversation(user2Id);
 
         assertSame(existing, result);
         verify(conversationRepository, never()).save(any());
@@ -72,11 +75,11 @@ public class MessageServiceTest {
         existing.setUser1(user1);
         existing.setUser2(user2);
 
+        when(currentUserService.get()).thenReturn(user2);
         when(userRepository.findById(user1Id)).thenReturn(Optional.of(user1));
-        when(userRepository.findById(user2Id)).thenReturn(Optional.of(user2));
         when(conversationRepository.findAll()).thenReturn(List.of(existing));
 
-        Conversation result = messageService.getOrCreateConversation(user2Id, user1Id);
+        Conversation result = messageService.getOrCreateConversation(user1Id);
 
         assertSame(existing, result);
         verify(conversationRepository, never()).save(any());
@@ -88,12 +91,12 @@ public class MessageServiceTest {
         saved.setUser1(user1);
         saved.setUser2(user2);
 
-        when(userRepository.findById(user1Id)).thenReturn(Optional.of(user1));
+        when(currentUserService.get()).thenReturn(user1);
         when(userRepository.findById(user2Id)).thenReturn(Optional.of(user2));
         when(conversationRepository.findAll()).thenReturn(List.of());
         when(conversationRepository.save(any())).thenReturn(saved);
 
-        Conversation result = messageService.getOrCreateConversation(user1Id, user2Id);
+        Conversation result = messageService.getOrCreateConversation(user2Id);
 
         assertNotNull(result);
         assertEquals(user1, result.getUser1());

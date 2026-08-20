@@ -25,6 +25,8 @@ public class UserServiceTest {
 
     @Mock
     PasswordEncoder passwordEncoder;
+    @Mock
+    CurrentUserService currentUserService;
 
     @InjectMocks
     UserService userService;
@@ -65,10 +67,10 @@ public class UserServiceTest {
         request.setUsername("Ola");
         request.setDescription("New description");
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
+        when(currentUserService.get()).thenReturn(mockUser);
         when(userRepository.save(mockUser)).thenReturn(mockUser);
 
-        User user = userService.updateUserProfile(userId, request);
+        User user = userService.updateUserProfile(request);
 
         assertEquals("Ola", user.getUsername());
         assertEquals("New description", user.getDescription());

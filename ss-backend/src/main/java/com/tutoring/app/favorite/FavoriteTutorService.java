@@ -2,6 +2,7 @@ package com.tutoring.app.favorite;
 
 import com.tutoring.app.user.User;
 import com.tutoring.app.user.UserRepository;
+import com.tutoring.app.user.CurrentUserService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,22 +15,24 @@ import java.util.stream.Collectors;
 public class FavoriteTutorService {
   private final FavoriteTutorRepository favoriteTutorRepository;
   private final UserRepository userRepository;
+  private final CurrentUserService currentUserService;
 
-  public FavoriteTutorDTO addFavorite(UUID studentId, UUID tutorId) {
-    if (studentId.equals(tutorId)) throw new IllegalArgumentException("Student and tutor cannot be the same user");
-    FavoriteTutor existing = favoriteTutorRepository.findByStudentIdAndTutorId(studentId, tutorId).orElse(null);
+  public FavoriteTutorDTO addFavorite(UUID tutorId) {
+    User student = currentUserService.get();
+    if (student.getId().equals(tutorId)) throw new IllegalArgumentException("Student and tutor cannot be the same user");
+    FavoriteTutor existing = favoriteTutorRepository.findByStudentIdAndTutorId(student.getId(), tutorId).orElse(null);
     if (existing != null) return toDto(existing);
-    User student = userRepository.findById(studentId).orElseThrow(() -> new EntityNotFoundException("Student not found"));
     User tutor = userRepository.findById(tutorId).orElseThrow(() -> new EntityNotFoundException("Tutor not found"));
     return toDto(favoriteTutorRepository.save(FavoriteTutor.builder().student(student).tutor(tutor).build()));
   }
 
-  public void removeFavorite(UUID studentId, UUID tutorId) {
+  public void removeFavorite(UUID tutorId) {
+    UUID studentId = currentUserService.get().getId();
     favoriteTutorRepository.findByStudentIdAndTutorId(studentId, tutorId).ifPresent(favoriteTutorRepository::delete);
   }
 
-  public List<FavoriteTutorDTO> getFavoritesForStudent(UUID studentId) {
-    return favoriteTutorRepository.findByStudentId(studentId).stream().map(this::toDto).collect(Collectors.toList());
+  public List<FavoriteTutorDTO> getFavoritesForCurrentUser() {
+    return favoriteTutorRepository.findByStudentId(currentUserService.get().getId()).stream().map(this::toDto).collect(Collectors.toList());
   }
 
   private FavoriteTutorDTO toDto(FavoriteTutor favorite) {

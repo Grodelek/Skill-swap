@@ -6,10 +6,12 @@ import com.tutoring.app.lesson.Lesson;
 import com.tutoring.app.lesson.LessonRepository;
 import com.tutoring.app.offer.TutorOffer;
 import com.tutoring.app.user.AesUtils;
+import com.tutoring.app.user.CurrentUserService;
 import com.tutoring.app.user.User;
 import com.tutoring.app.user.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,34 +25,37 @@ public class MessageService {
     private final UserRepository userRepository;
     private final LessonRepository lessonRepository;
     private final AesUtils aesUtils;
+    private final CurrentUserService currentUserService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public MessageService(MessageRepository messageRepository, ConversationRepository conversationRepository,
-                          UserRepository userRepository, LessonRepository lessonRepository, AesUtils aesUtils) {
+                          UserRepository userRepository, LessonRepository lessonRepository, AesUtils aesUtils,
+                          CurrentUserService currentUserService, SimpMessagingTemplate messagingTemplate) {
         this.messageRepository = messageRepository;
         this.conversationRepository = conversationRepository;
         this.userRepository = userRepository;
         this.lessonRepository = lessonRepository;
         this.aesUtils = aesUtils;
+        this.currentUserService = currentUserService;
+        this.messagingTemplate = messagingTemplate;
     }
 
-    public Conversation getOrCreateConversation(UUID user1Id, UUID user2Id) {
-        Optional<User> userSenderOptional = userRepository.findById(user1Id);
-        Optional<User> userReceiverOptional = userRepository.findById(user2Id);
-        if (userSenderOptional.isEmpty() || userReceiverOptional.isEmpty())
-            throw new IllegalArgumentException("User not found");
+    public Conversation getOrCreateConversation(UUID receiverId) {
+        User sender = currentUserService.get();
+        Optional<User> userReceiverOptional = userRepository.findById(receiverId);
+        if (userReceiverOptional.isEmpty()) throw new IllegalArgumentException("User not found");
 
         return conversationRepository.findAll().stream()
                 .filter(c -> {
                     UUID cUser1Id = c.getUser1() != null ? c.getUser1().getId() : null;
                     UUID cUser2Id = c.getUser2() != null ? c.getUser2().getId() : null;
                     return cUser1Id != null && cUser2Id != null &&
-                            ((user1Id.equals(cUser1Id) && user2Id.equals(cUser2Id)) ||
-                                    (user1Id.equals(cUser2Id) && user2Id.equals(cUser1Id)));
+                            ((sender.getId().equals(cUser1Id) && receiverId.equals(cUser2Id)) ||
+                                    (sender.getId().equals(cUser2Id) && receiverId.equals(cUser1Id)));
                 })
                 .findFirst()
                 .orElseGet(() -> {
                     Conversation conv = new Conversation();
-                    User sender = userSenderOptional.get();
                     User receiver = userReceiverOptional.get();
                     conv.setUser1(sender); conv.setUser2(receiver);
                     conv.setUser1Username(sender.getUsername()); conv.setUser2Username(receiver.getUsername());
@@ -58,9 +63,9 @@ public class MessageService {
                 });
     }
 
-    public MessageDTO sendMessage(UUID senderId, UUID receiverId, String content, MessageType messageType, UUID lessonId) throws Exception {
-        Conversation conversation = getOrCreateConversation(senderId, receiverId);
-        User sender = userRepository.findById(senderId).orElseThrow(() -> new IllegalArgumentException("Sender not found"));
+    public MessageDTO sendMessage(UUID receiverId, String content, MessageType messageType, UUID lessonId) throws Exception {
+        User sender = currentUserService.get();
+        Conversation conversation = getOrCreateConversation(receiverId);
         User receiver = userRepository.findById(receiverId).orElseThrow(() -> new IllegalArgumentException("Receiver not found"));
         Message message = new Message();
         message.setSender(sender); message.setReceiver(receiver);
@@ -77,12 +82,14 @@ public class MessageService {
         dto.setContent(content); dto.setId(message.getId()); dto.setTimestamp(message.getTimestamp());
         dto.setReceiverId(message.getReceiver().getId()); dto.setSenderId(message.getSender().getId());
         dto.setMessageType(message.getMessageType());
+        dto.setConversationId(conversation.getId());
+        messagingTemplate.convertAndSendToUser(receiver.getUsername(), "/queue/notifications", dto);
         return dto;
     }
 
     public MessageDTO sendOfferInvitation(UUID senderId, UUID receiverId, TutorOffer offer) throws Exception {
-        Conversation conversation = getOrCreateConversation(senderId, receiverId);
-        User sender = userRepository.findById(senderId).orElseThrow(() -> new IllegalArgumentException("Sender not found"));
+        Conversation conversation = getOrCreateConversation(receiverId);
+        User sender = currentUserService.get();
         User receiver = userRepository.findById(receiverId).orElseThrow(() -> new IllegalArgumentException("Receiver not found"));
         Message message = new Message();
         message.setSender(sender); message.setReceiver(receiver);
@@ -94,10 +101,14 @@ public class MessageService {
         messageRepository.save(message);
         MessageDTO dto = new MessageDTO(message);
         dto.setContent("Propozycja sesji");
+        messagingTemplate.convertAndSendToUser(receiver.getUsername(), "/queue/notifications", dto);
         return dto;
     }
 
     public List<MessageDTO> getMessages(UUID conversationId) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation not found"));
+        verifyParticipant(conversation);
         return messageRepository.findByConversationIdOrderByTimestampAsc(conversationId).stream().map(msg -> {
             String decrypted;
             try {
@@ -115,7 +126,17 @@ public class MessageService {
     public ResponseEntity<String> deleteMessage(UUID id) {
         Optional<Message> optional = messageRepository.findById(id);
         if (optional.isEmpty()) return new ResponseEntity<>("Message not found", HttpStatus.NOT_FOUND);
+        if (!optional.get().getSender().getId().equals(currentUserService.get().getId())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
         messageRepository.delete(optional.get());
         return new ResponseEntity<>("Message deleted", HttpStatus.OK);
+    }
+
+    private void verifyParticipant(Conversation conversation) {
+        UUID currentUserId = currentUserService.get().getId();
+        if (!currentUserId.equals(conversation.getUser1().getId()) && !currentUserId.equals(conversation.getUser2().getId())) {
+            throw new SecurityException("You are not a participant in this conversation");
+        }
     }
 }

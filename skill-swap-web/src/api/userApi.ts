@@ -54,8 +54,8 @@ export async function getUserById(id: string): Promise<User> {
   return res.json()
 }
 
-export async function updateUser(data: Partial<User> & { id: string }): Promise<User> {
-  const res = await authFetch(`/api/users/${data.id}`, {
+export async function updateUser(data: Partial<User>): Promise<User> {
+  const res = await authFetch('/api/users/me', {
     method: 'PUT',
     body: JSON.stringify(data),
   })

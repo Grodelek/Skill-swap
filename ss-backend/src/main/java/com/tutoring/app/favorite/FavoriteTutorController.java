@@ -19,17 +19,17 @@ public class FavoriteTutorController {
 
   @PostMapping("/add")
   public ResponseEntity<FavoriteTutorDTO> addFavorite(@RequestBody FavoriteTutorDTO request) {
-    return ResponseEntity.ok(favoriteTutorService.addFavorite(request.getStudentId(), request.getTutorId()));
+    return ResponseEntity.ok(favoriteTutorService.addFavorite(request.getTutorId()));
   }
 
-  @DeleteMapping("/remove/{studentId}/{tutorId}")
-  public ResponseEntity<Void> removeFavorite(@PathVariable UUID studentId, @PathVariable UUID tutorId) {
-    favoriteTutorService.removeFavorite(studentId, tutorId);
+  @DeleteMapping("/remove/{tutorId}")
+  public ResponseEntity<Void> removeFavorite(@PathVariable UUID tutorId) {
+    favoriteTutorService.removeFavorite(tutorId);
     return ResponseEntity.noContent().build();
   }
 
-  @GetMapping("/student/{studentId}")
-  public ResponseEntity<List<FavoriteTutorDTO>> getFavorites(@PathVariable UUID studentId) {
-    return ResponseEntity.ok(favoriteTutorService.getFavoritesForStudent(studentId));
+  @GetMapping("/me")
+  public ResponseEntity<List<FavoriteTutorDTO>> getFavorites() {
+    return ResponseEntity.ok(favoriteTutorService.getFavoritesForCurrentUser());
   }
 }

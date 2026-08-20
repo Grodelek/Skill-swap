@@ -13,9 +13,10 @@ export function useWebSocketMessages(
     const client = new Client({
       brokerURL: undefined,
       webSocketFactory: () => new SockJS(`${BASE_URL}/ws`),
+      connectHeaders: { Authorization: `Bearer ${localStorage.getItem('jwtToken') ?? ''}` },
       reconnectDelay: 5000,
       onConnect: () => {
-        client.subscribe('/topic/notification', (frame) => {
+        client.subscribe('/user/queue/notifications', (frame) => {
           try {
             const payload = JSON.parse(frame.body)
             if (payload.conversationId === conversationId) {

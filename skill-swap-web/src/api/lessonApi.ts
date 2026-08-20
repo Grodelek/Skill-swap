@@ -12,10 +12,9 @@ export interface Lesson {
 }
 
 export async function sendMessageToTutor(tutorId: string): Promise<{ id: string }> {
-  const user1Id = localStorage.getItem('userId') ?? ''
   const res = await authFetch('/api/messages/get-or-create', {
     method: 'POST',
-    body: JSON.stringify({ user1Id, user2Id: tutorId }),
+    body: JSON.stringify({ user2Id: tutorId }),
   })
   if (!res.ok) throw new Error('Blad tworzenia konwersacji')
   return res.json()

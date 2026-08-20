@@ -4,6 +4,7 @@ import com.tutoring.app.favorite.FavoriteTutor;
 import com.tutoring.app.favorite.FavoriteTutorDTO;
 import com.tutoring.app.favorite.FavoriteTutorRepository;
 import com.tutoring.app.user.UserRepository;
+import com.tutoring.app.user.CurrentUserService;
 import com.tutoring.app.favorite.FavoriteTutorService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,8 @@ public class FavoriteTutorTest {
     FavoriteTutorRepository favoriteTutorRepository;
     @Mock
     UserRepository userRepository;
+    @Mock
+    CurrentUserService currentUserService;
     @InjectMocks
     FavoriteTutorService favoriteTutorService;
 
@@ -56,10 +59,10 @@ public class FavoriteTutorTest {
 
         when(favoriteTutorRepository.findByStudentIdAndTutorId(studentId, tutorId))
                 .thenReturn(Optional.empty());
-        when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(currentUserService.get()).thenReturn(student);
         when(userRepository.findById(tutorId)).thenReturn(Optional.of(tutor));
         when(favoriteTutorRepository.save(any(FavoriteTutor.class))).thenReturn(favoriteTutor);
-        FavoriteTutorDTO result = favoriteTutorService.addFavorite(studentId, tutorId);
+        FavoriteTutorDTO result = favoriteTutorService.addFavorite(tutorId);
 
         assertNotNull(result);
         assertNotNull(result.getId());

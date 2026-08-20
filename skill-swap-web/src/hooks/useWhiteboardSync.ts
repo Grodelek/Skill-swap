@@ -16,6 +16,7 @@ export function useWhiteboardSync(
     const client = new Client({
       brokerURL: undefined,
       webSocketFactory: () => new SockJS(`${BASE_URL}/ws`),
+      connectHeaders: { Authorization: `Bearer ${localStorage.getItem('jwtToken') ?? ''}` },
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe(`/topic/whiteboard/${conversationId}`, (frame) => {

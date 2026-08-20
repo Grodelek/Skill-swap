@@ -2,12 +2,10 @@ package com.tutoring.app.message;
 
 import com.tutoring.app.conversation.Conversation;
 import com.tutoring.app.conversation.ConversationDTO;
-import com.tutoring.app.conversation.ConversationService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -21,15 +19,12 @@ import java.util.UUID;
 @RequestMapping("/api/messages")
 public class MessageController {
   private final MessageService messageService;
-  private final ConversationService conversationService;
-  private final SimpMessagingTemplate messagingTemplate;
 
   @PostMapping("/send")
   public ResponseEntity<?> sendMessage(@RequestBody MessageRequest request) throws Exception {
     MessageDTO saved = messageService.sendMessage(
-        request.getSenderId(), request.getReceiverId(),
+        request.getReceiverId(),
         request.getContent(), request.getMessageType(), request.getLessonId());
-    messagingTemplate.convertAndSend("/topic/notification", saved);
     return ResponseEntity.ok(saved);
   }
 
@@ -41,7 +36,7 @@ public class MessageController {
   @PostMapping("/get-or-create")
   public ResponseEntity<?> getOrCreateConversation(@RequestBody ConversationDTO req) {
     try {
-      Conversation conversation = messageService.getOrCreateConversation(req.getUser1Id(), req.getUser2Id());
+      Conversation conversation = messageService.getOrCreateConversation(req.getUser2Id());
       return ResponseEntity.ok(conversation);
     } catch (IllegalArgumentException e) {
       return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());

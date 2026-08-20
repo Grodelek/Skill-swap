@@ -5,13 +5,10 @@ import com.tutoring.app.lesson.LessonRepository;
 import com.tutoring.app.message.MessageDTO;
 import com.tutoring.app.message.MessageService;
 import com.tutoring.app.user.User;
-import com.tutoring.app.user.UserPrincipal;
+import com.tutoring.app.user.CurrentUserService;
 import com.tutoring.app.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -31,16 +28,16 @@ public class TutorOfferService {
     private final TutorOfferRepository tutorOfferRepository;
     private final LessonRepository lessonRepository;
     private final MessageService messageService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final CurrentUserService currentUserService;
 
     public TutorOfferService(UserRepository userRepository, TutorOfferRepository tutorOfferRepository,
                              LessonRepository lessonRepository, MessageService messageService,
-                             SimpMessagingTemplate messagingTemplate) {
+                             CurrentUserService currentUserService) {
         this.userRepository = userRepository;
         this.tutorOfferRepository = tutorOfferRepository;
         this.lessonRepository = lessonRepository;
         this.messageService = messageService;
-        this.messagingTemplate = messagingTemplate;
+        this.currentUserService = currentUserService;
     }
 
     @Transactional
@@ -49,7 +46,7 @@ public class TutorOfferService {
         if (offerDTO.getReceiverId() == null) throw new IllegalArgumentException("Receiver ID cannot be null");
         if (offerDTO.getSessionStartTime() == null) throw new IllegalArgumentException("Session start time cannot be null");
 
-        User proposer = getLoggedInUser();
+        User proposer = currentUserService.get();
         User receiver = userRepository.findById(offerDTO.getReceiverId())
                 .orElseThrow(() -> new EntityNotFoundException("Receiver not found"));
         Lesson lesson = lessonRepository.findById(offerDTO.getLessonId())
@@ -70,7 +67,6 @@ public class TutorOfferService {
         tutorOfferRepository.save(offer);
 
         MessageDTO invitation = messageService.sendOfferInvitation(proposer.getId(), receiver.getId(), offer);
-        messagingTemplate.convertAndSend("/topic/notification", invitation);
         return new OfferResponseDTO(offer);
     }
 
@@ -93,7 +89,7 @@ public class TutorOfferService {
     @Transactional
     public OfferResponseDTO confirmPayment(UUID offerId) {
         TutorOffer offer = getParticipantOffer(offerId);
-        User user = getLoggedInUser();
+        User user = currentUserService.get();
         if (offer.getStatus() != OfferStatus.ACCEPTED)
             throw new IllegalStateException("Płatność można potwierdzić tylko dla zaakceptowanych zajęć");
         long effectiveMinutes = Math.round(offer.getLesson().getDurationTime() * sessionTimeMultiplier);
@@ -111,7 +107,7 @@ public class TutorOfferService {
     }
 
     public List<OfferResponseDTO> getMyStudentBookings() {
-        User user = getLoggedInUser();
+        User user = currentUserService.get();
         return tutorOfferRepository.findByStudentIdOrderBySessionStartTimeAsc(user.getId()).stream()
                 .map(OfferResponseDTO::new).collect(Collectors.toList());
     }
@@ -125,17 +121,10 @@ public class TutorOfferService {
     private TutorOffer getParticipantOffer(UUID offerId) {
         TutorOffer offer = tutorOfferRepository.findById(offerId)
                 .orElseThrow(() -> new EntityNotFoundException("Offer not found"));
-        User user = getLoggedInUser();
+        User user = currentUserService.get();
         if (!user.getId().equals(offer.getTutor().getId()) && !user.getId().equals(offer.getStudent().getId()))
             throw new SecurityException("Nie jesteś uczestnikiem tej oferty");
         return offer;
     }
 
-    private User getLoggedInUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) throw new SecurityException("User is not authenticated");
-        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
-        return userRepository.findByUsername(principal.getUsername())
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
-    }
 }

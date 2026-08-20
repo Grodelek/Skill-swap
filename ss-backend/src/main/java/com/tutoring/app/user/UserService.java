@@ -26,14 +26,16 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final AuthenticationManager authenticationManager;
   private final JWTService jwtService;
+  private final CurrentUserService currentUserService;
   private final Logger logger = LoggerFactory.getLogger(UserService.class);
 
   public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                     AuthenticationManager authenticationManager, JWTService jwtService) {
+                     AuthenticationManager authenticationManager, JWTService jwtService, CurrentUserService currentUserService) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.authenticationManager = authenticationManager;
     this.jwtService = jwtService;
+    this.currentUserService = currentUserService;
   }
 
   public List<User> getUsers() { return userRepository.findAll(); }
@@ -97,13 +99,10 @@ public class UserService {
             .lessonType(user.getLessonType()).lessons(lessons).build();
   }
 
-  public ResponseEntity<String> delete(UUID id) {
-    Optional<User> userOptional = userRepository.findById(id);
-    if (userOptional.isPresent()) {
-      userRepository.delete(userOptional.get());
-      return new ResponseEntity<>("User " + userOptional.get().getUsername() + " deleted", HttpStatus.OK);
-    }
-    return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+  public ResponseEntity<String> deleteCurrentUser() {
+    User user = currentUserService.get();
+    userRepository.delete(user);
+    return new ResponseEntity<>("User " + user.getUsername() + " deleted", HttpStatus.OK);
   }
 
   @Transactional
@@ -138,7 +137,7 @@ public class UserService {
             .username(user.getUsername())
             .email(user.getEmail())
             .description(user.getDescription())
-            .points(user.getPoints())
+            .points(user.getPoints() == null ? 0 : user.getPoints())
             .photoPath(user.getPhotoPath())
             .streak(user.getStreak() == null ? 0 : user.getStreak())
             .build();
@@ -150,8 +149,8 @@ public class UserService {
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
   }
 
-  public User updateUserProfile(UUID id, UpdateUserProfileRequest request) {
-    User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found with this id" + id));
+  public User updateUserProfile(UpdateUserProfileRequest request) {
+    User user = currentUserService.get();
     if (request.getUsername() != null) user.setUsername(request.getUsername());
     if (request.getDescription() != null) user.setDescription(request.getDescription());
     return userRepository.save(user);

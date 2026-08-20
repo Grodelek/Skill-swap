@@ -23,8 +23,7 @@ export interface ConversationDTO {
 }
 
 export async function fetchConversations(): Promise<ConversationDTO[]> {
-  const userId = localStorage.getItem('userId') ?? ''
-  const res = await authFetch(`/api/conversation/${userId}`)
+  const res = await authFetch('/api/conversation/me')
   if (!res.ok) throw new Error('Blad pobierania konwersacji')
   return res.json()
 }
@@ -36,10 +35,9 @@ export async function getMessages(conversationId: string): Promise<ChatMessage[]
 }
 
 export async function sendMessage(conversationId: string, content: string, receiverId: string): Promise<void> {
-  const senderId = localStorage.getItem('userId') ?? ''
   await authFetch('/api/messages/send', {
     method: 'POST',
-    body: JSON.stringify({ conversationId, content, senderId, receiverId }),
+    body: JSON.stringify({ conversationId, content, receiverId }),
   })
 }
 

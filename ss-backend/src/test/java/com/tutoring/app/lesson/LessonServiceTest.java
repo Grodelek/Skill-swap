@@ -1,8 +1,8 @@
 package com.tutoring.app.lesson;
 
 import com.tutoring.app.user.User;
-import com.tutoring.app.user.UserPrincipal;
-import com.tutoring.app.user.UserRepository;
+import com.tutoring.app.user.CurrentUserService;
+import com.tutoring.app.message.MessageRepository;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 
@@ -14,14 +14,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,7 +25,9 @@ public class LessonServiceTest {
     @Mock
     LessonRepository lessonRepository;
     @Mock
-    UserRepository userRepository;
+    CurrentUserService currentUserService;
+    @Mock
+    MessageRepository messageRepository;
 
     @InjectMocks
     LessonService lessonService;
@@ -37,9 +35,6 @@ public class LessonServiceTest {
     private User user;
     private UUID tutorId;
     private LessonRequestDTO lessonRequestDTO;
-    private UserPrincipal principal;
-    private SecurityContext securityContext;
-    private Authentication authentication;
 
     @BeforeEach
     void setUp(){
@@ -59,16 +54,7 @@ public class LessonServiceTest {
          .description("Polish lesson")
          .build();
 
-        principal = new UserPrincipal(user);
-
-        authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn(principal);
-
-        securityContext = mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        SecurityContextHolder.setContext(securityContext);
-        when(userRepository.findByUsername(principal.getUsername())).thenReturn(Optional.of(user));
-        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserService.get()).thenReturn(user);
     }
 
     @Test
@@ -139,8 +125,4 @@ public class LessonServiceTest {
         );
     }
 
-    @AfterEach
-    void clearSecurityContext() {
-        SecurityContextHolder.clearContext();
-    }
 }
